@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô phỏng Ngũ giác Nồng độ (Điều khiển Slider)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        h2 { margin-bottom: 5px; }
+        p.subtitle { margin-top: 0; color: #666; font-size: 0.9em; }
+
+        .main-layout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            align-items: flex-start;
+            margin-top: 20px;
+        }
+
+        .canvas-container {
+            background: white;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            background-color: #fff;
+            display: block;
+        }
+
+        /* Slider Controls Styling */
+        .controls-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            min-width: 250px;
+        }
+        .slider-group {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        .slider-label span {
+            color: #007bff;
+            font-family: monospace;
+        }
+        input[type=range] {
+            -webkit-appearance: none; 
+            width: 100%; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+            margin-top: -6px; 
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #ddd;
+            border-radius: 2px;
+        }
+        
+        button.random-btn {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 14px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button.random-btn:hover { background-color: #218838; }
+
+        .legend {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #555;
+            text-align: center;
+        }
+        .legend span { margin: 0 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>Mô phỏng Ngũ Giác Nồng Độ</h2>
+    <p class="subtitle">Điều chỉnh các giá trị k (từ 0 đến 1)</p>
+
+    <div class="main-layout">
+        <!-- Khu vực Canvas -->
+        <div>
+            <div class="canvas-container">
+                <canvas id="pentagonCanvas" width="500" height="500"></canvas>
+            </div>
+            <div class="legend">
+                <span style="color: blue;">■ A (Cố định)</span>
+                <span style="color: green;">x M (Di động theo k)</span>
+                <span style="color: red;">★ P (Kết quả)</span>
+            </div>
+        </div>
+
+        <!-- Khu vực điều khiển Sliders -->
+        <div class="controls-panel">
+            <h3 style="margin-top:0; font-size:16px; border-bottom:1px solid #eee; padding-bottom:10px;">Bảng điều khiển k</h3>
+            
+            <!-- Slider k1 -->
+            <div class="slider-group">
+                <div class="slider-label">k1 (A1-A2): <span id="val-k1">0.50</span></div>
+                <input type="range" id="k1" min="0.01" max="0.99" step="0.01" value="0.5">
+            </div>
+            <!-- Slider k2 -->
+            <div class="slider-group">
+                <div class="slider-label">k2 (A2-A3): <span id="val-k2">0.50</span></div>
+                <input type="range" id="k2" min="0.01" max="0.99" step="0.01" value="0.5">
+            </div>
+            <!-- Slider k3 -->
+            <div class="slider-group">
+                <div class="slider-label">k3 (A3-A4): <span id="val-k3">0.50</span></div>
+                <input type="range" id="k3" min="0.01" max="0.99" step="0.01" value="0.5">
+            </div>
+            <!-- Slider k4 -->
+            <div class="slider-group">
+                <div class="slider-label">k4 (A4-A5): <span id="val-k4">0.50</span></div>
+                <input type="range" id="k4" min="0.01" max="0.99" step="0.01" value="0.5">
+            </div>
+            <!-- Slider k5 -->
+            <div class="slider-group">
+                <div class="slider-label">k5 (A5-A1): <span id="val-k5">0.50</span></div>
+                <input type="range" id="k5" min="0.01" max="0.99" step="0.01" value="0.5">
+            </div>
+
+            <button class="random-btn" onclick="randomizeSliders()">Ngẫu nhiên tất cả</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('pentagonCanvas');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = 180;
+
+        // Lấy danh sách các phần tử slider và nhãn hiển thị giá trị
+        const sliderIds = ['k1', 'k2', 'k3', 'k4', 'k5'];
+        const sliders = sliderIds.map(id => document.getElementById(id));
+        const valueLabels = sliderIds.map(id => document.getElementById(`val-${id}`));
+
+        // Gán sự kiện lắng nghe cho từng slider
+        sliders.forEach((slider, index) => {
+            slider.addEventListener('input', () => {
+                // Cập nhật số hiển thị
+                valueLabels[index].textContent = parseFloat(slider.value).toFixed(2);
+                // Vẽ lại
+                draw();
+            });
+        });
+
+        // Hàm ngẫu nhiên hóa các slider
+        function randomizeSliders() {
+            sliders.forEach((slider, index) => {
+                const randomVal = 0.1 + Math.random() * 0.8; // Random từ 0.1 đến 0.9 cho đẹp
+                slider.value = randomVal;
+                valueLabels[index].textContent = randomVal.toFixed(2);
+            });
+            draw();
+        }
+
+        // Hàm vẽ chính
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+            drawGrid();
+
+            // 1. Tạo tọa độ Ngũ giác đều A
+            const A = [];
+            for (let i = 0; i < 5; i++) {
+                const angle = -Math.PI / 2 + i * (2 * Math.PI / 5);
+                A.push({
+                    x: centerX + radius * Math.cos(angle),
+                    y: centerY + radius * Math.sin(angle)
+                });
+            }
+
+            // 2. Tính toán tọa độ M dựa trên giá trị k từ Slider
+            const M = [];
+            const k_values = sliders.map(s => parseFloat(s.value));
+
+            for (let i = 0; i < 5; i++) {
+                const k = k_values[i];
+                const nextIndex = (i + 1) % 5;
+                
+                // Công thức chia đoạn thẳng: M = A + (B-A)*k
+                const mx = A[i].x + (A[nextIndex].x - A[i].x) * k;
+                const my = A[i].y + (A[nextIndex].y - A[i].y) * k;
+                
+                M.push({x: mx, y: my});
+            }
+
+            // 3. Tính toán tọa độ P (Điểm nồng độ)
+            // P nằm trên đoạn nối M_prev và M_curr
+            const P = [];
+            for (let i = 0; i < 5; i++) {
+                const prevIndex = (i - 1 + 5) % 5; // M trên cạnh trước (dòng đến)
+                const currIndex = i;               // M trên cạnh hiện tại (dòng đi)
+                
+                // Lấy trung điểm đoạn nối 2 M (Thể hiện sự pha trộn)
+                const px = (M[prevIndex].x + M[currIndex].x) / 2;
+                const py = (M[prevIndex].y + M[currIndex].y) / 2;
+                
+                P.push({x: px, y: py});
+            }
+
+            // --- VẼ HÌNH ---
+
+            // Vẽ Ngũ giác A (Xanh dương nhạt)
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(0, 0, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.moveTo(A[0].x, A[0].y);
+            for (let i = 1; i < 5; i++) ctx.lineTo(A[i].x, A[i].y);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Vẽ các đường nối M-M (Nét đứt) -> Quỹ tích của P
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
+            ctx.setLineDash([4, 4]);
+            for (let i = 0; i < 5; i++) {
+                const prevIndex = (i - 1 + 5) % 5;
+                ctx.moveTo(M[prevIndex].x, M[prevIndex].y);
+                ctx.lineTo(M[i].x, M[i].y);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Vẽ Ngũ giác P (Đỏ đậm)
+            ctx.beginPath();
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 3;
+            ctx.moveTo(P[0].x, P[0].y);
+            for (let i = 1; i < 5; i++) ctx.lineTo(P[i].x, P[i].y);
+            ctx.closePath();
+            ctx.stroke();
+            // Tô màu nhẹ bên trong P
+            ctx.fillStyle = 'rgba(231, 76, 60, 0.1)';
+            ctx.fill();
+
+            // Vẽ các điểm và nhãn
+            for (let i = 0; i < 5; i++) {
+                // Vẽ A
+                drawPoint(A[i].x, A[i].y, 4, '#3498db');
+                drawText(`A${i+1}`, A[i].x, A[i].y, '#3498db', 1.15);
+
+                // Vẽ M
+                drawX(M[i].x, M[i].y, 5, '#27ae60');
+                // Nhãn M di chuyển theo M
+                drawText(`M${i+1}`, M[i].x, M[i].y, '#27ae60', 1.12);
+
+                // Vẽ P
+                drawStar(P[i].x, P[i].y, 5, '#c0392b');
+                drawText(`P${i+1}`, P[i].x, P[i].y, '#c0392b', 0.8);
+            }
+        }
+
+        // --- HÀM PHỤ TRỢ ---
+        function drawGrid() {
+            ctx.strokeStyle = '#f0f0f0';
+            ctx.lineWidth = 1;
+            const step = 50;
+            for(let x=0; x<width; x+=step) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,height); ctx.stroke(); }
+            for(let y=0; y<height; y+=step) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(width,y); ctx.stroke(); }
+        }
+
+        function drawPoint(x, y, r, color) {
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, 2 * Math.PI);
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+
+        function drawX(x, y, r, color) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.moveTo(x - r, y - r); ctx.lineTo(x + r, y + r);
+            ctx.moveTo(x + r, y - r); ctx.lineTo(x - r, y + r);
+            ctx.stroke();
+        }
+
+        function drawStar(cx, cy, r, color) {
+            let rot = Math.PI / 2 * 3;
+            let x = cx; let y = cy;
+            let step = Math.PI / 5;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - r);
+            for (let i = 0; i < 5; i++) {
+                x = cx + Math.cos(rot) * r;
+                y = cy + Math.sin(rot) * r;
+                ctx.lineTo(x, y); rot += step;
+                x = cx + Math.cos(rot) * (r/2.5);
+                y = cy + Math.sin(rot) * (r/2.5);
+                ctx.lineTo(x, y); rot += step;
+            }
+            ctx.lineTo(cx, cy - r);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+
+        function drawText(text, x, y, color, offsetFactor) {
+            ctx.fillStyle = color;
+            ctx.font = "bold 12px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            const dx = x - centerX;
+            const dy = y - centerY;
+            
+            // Nếu điểm gần tâm (như P), đẩy chữ ra xa một chút để dễ đọc
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 20) offsetFactor = 1; 
+
+            const labelX = centerX + dx * offsetFactor;
+            const labelY = centerY + dy * offsetFactor;
+            ctx.fillText(text, labelX, labelY);
+        }
+
+        // Khởi chạy lần đầu
+        draw();
+
+    </script>
+</body>
+</html>
